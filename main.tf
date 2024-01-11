@@ -355,28 +355,32 @@ output "lb_dns_name" {
   description = "The DNS name of the load balancer"
   value       = aws_lb.external-elb.dns_name
 }
-# Create NAT Gateway
-resource "aws_nat_gateway" "nat_gateway" {
-  allocation_id = aws_instance.webserver1.network_interface_ids[0]
-  subnet_id     = aws_subnet.application-subnet-1.id
+resource "aws_subnet" "private_subnet" {
+  vpc_id                  = aws_vpc.my_vpc.id
+  cidr_block              = "10.0.2.0/24"
+  availability_zone       = "us-east-1b"
+  map_public_ip_on_launch = false
 
   tags = {
-    Name = "NAT-Gateway"
+    Name = "private-subnet"
   }
 }
+resource "aws_nat_gateway" "nat_gateway" {
+  allocation_id = "your_eip_allocation_id"
+  subnet_id     = aws_subnet.public_subnet.id
 
-# Update Application Subnet Route Table to use NAT Gateway
-resource "aws_route" "nat_gateway_route" {
-  route_table_id         = aws_route_table_association.a.route_table_id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.nat_gateway.id
+  tags = {
+    Name = "nat-gateway"
+  }
+}
+esource "aws_route" "private_subnet_route" {
+  route_table_id            = aws_route_table.private_route_table.id
+  destination_cidr_block    = "0.0.0.0/0"
+  nat_gateway_id            = aws_nat_gateway.nat_gateway.id
 }
 
-resource "aws_route" "nat_gateway_route_b" {
-  route_table_id         = aws_route_table_association.b.route_table_id
-  destination_cidr_block = "0.0.0.0/0"
-  nat_gateway_id         = aws_nat_gateway.nat_gateway.id
+# Associate the private subnet with the private route table
+resource "aws_route_table_association" "private_subnet_association" {
+  subnet_id      = aws_subnet.private_subnet.id
+  route_table_id = aws_route_table.private_route_table.id
 }
-
-
-          
